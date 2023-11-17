@@ -50,13 +50,13 @@
       //   - délai d'impulsion pour tourner le servo de +90° environ    =>  2 ms (2000 µs)
       //   - délai minimal d'impulsion (imposé par librairie Servo.h)   =>  0.544 ms (544 µs)   => je vais prendre 550 µs dans ce code, pour simplifier les choses
       //   - délai maximal d'impulsion (imposé par librairie Servo.h)   =>  2.400 ms (2400 µs)
-#define valeurMinSeuilBasImpulsionServo       550     // Avec ces 3 valeurs (550/1000/1500), on spécifie que la valeur min d'une impulsion servo
-#define valeurDefautSeuilBasImpulsionServo    1000    // sera comprise entre 550 et 1500 µs (avec 1000µs, par défaut)
-#define valeurMaxSeuilBasImpulsionServo       1500
-#define valeurMinSeuilHautImpulsionServo      1500    // Avec ces 3 valeurs (1500/2000/2400), on spécifie que la valeur max d'une impulsion servo
-#define valeurDefautSeuilHautImpulsionServo   2000    // sera comprise entre 1500 et 2400 µs (avec 2000µs, par défaut)
+#define valeurMinSeuilBasImpulsionServo       550     // Avec ces 3 valeurs (550/1000/1400), on spécifie que la valeur min d'une impulsion servo
+#define valeurDefautSeuilBasImpulsionServo    1000    // sera comprise entre 550 et 1400 µs (avec 1000µs, par défaut)
+#define valeurMaxSeuilBasImpulsionServo       1400
+#define valeurMinSeuilHautImpulsionServo      1600    // Avec ces 3 valeurs (1600/2000/2400), on spécifie que la valeur max d'une impulsion servo
+#define valeurDefautSeuilHautImpulsionServo   2000    // sera comprise entre 1600 et 2400 µs (avec 2000µs, par défaut)
 #define valeurMaxSeuilHautImpulsionServo      2400
-#define pasModificationDelaiImpulsionServo    50      // Avec les boutons de navigation du menu, on pourra modifier les valeurs par pas de 50 µs
+#define pasDeModificationDelaiImpulsionServo  50      // Avec les boutons de navigation du menu, on pourra modifier les valeurs par pas de 50 µs
 
 
 // Constantes concernant l'écran OLED
@@ -86,9 +86,10 @@ Adafruit_SSD1306 ecran_oled(nombreDePixelsEnLargeurEcranOLED, nombreDePixelsEnHa
 
 // Autres variables
 int ligne_selectionnee_dans_menu = 1;               // Contiendra le numéro de ligne sélectionné dans le menu de l'écran OLED (1=Tmin, 2=Tmax, et 3=Réinitialiser)
-int ligne_avec_valeur_en_surbrillance = 0;          // Contiendra le numéro de ligne dont la valeur doit être mise en surbrillance (0 si aucune)
 bool touches_haut_bas_actives = true;               // Booléen qui dira si les touches haut/bas doivent être actives ou non (selon si on navigue dans le menu, ou si on modifie une valeur)
 bool touches_gauche_droite_actives = false;         // Booléen qui dira si les touches gauche/droite doivent être actives ou non (selon si on navigue dans le menu, ou si on modifie une valeur)
+bool affichage_menu_principal = true;               // Booléen qui dira si on affiche le menu principal ou une "autre page"
+bool annuler_reinitialisation = true;               // Booléen qui dire si on affiche l'option "NON" ou "OUI" lorsqu'on sera sur la page "réinitialiser valeurs"
 int valeurMinCouranteServo = 0;                     // Valeur minimale courante pour l'impulsion servo, servant de base au PWM
 int valeurMaxCouranteServo = 0;                     // Valeur maximale courante pour l'impulsion servo, servant de base au PWM
 int valeurPrecendentePotentiometre = 0;             // Mémorisation de la précédente valeur du potentiomètre, pour ne modifier le signal PWM que si nécessaire
@@ -118,11 +119,6 @@ void setup() {
 
     // Récupère les valeurs sauvegardées en EEPROM (ou les initialise, si elles sont absentes)
     recupereValeursEnEEPROM();
-
-
-    // <--- forçages pour tests
-    //valeurMinCouranteServo = valeurDefautSeuilBasImpulsionServo;
-    //valeurMaxCouranteServo = valeurDefautSeuilHautImpulsionServo;
     
 
     // Définition des entrées/sorties de l'Arduino
@@ -215,7 +211,7 @@ void ecritValeurIntEnEEPROM(int adresse, int valeur)
 // ======================
 // Fonction : afficheMenu
 // ======================
-void afficheMenu(int numeroLigneSelectionnee, int numeroLigneAvecValeurEnSurbrillance) {
+void afficheMenu() {
 
   // Effaçage de la mémoire tampon de l'écran OLED
   ecran_oled.clearDisplay();                           
@@ -226,43 +222,61 @@ void afficheMenu(int numeroLigneSelectionnee, int numeroLigneAvecValeurEnSurbril
   ecran_oled.setCursor(10, 0);
   ecran_oled.println("SERVOTEST");
 
-  // Ligne #1 du menu
-  ecran_oled.setTextSize(1);
-  ecran_oled.setCursor(10, 25);  ecran_oled.println("T(min) :");
-  if(numeroLigneAvecValeurEnSurbrillance == 1) {
-    ecran_oled.setTextColor(BLACK, WHITE);
-  }
-  ecran_oled.setCursor(70, 25);  ecran_oled.println(valeurMinCouranteServo);
+  if(affichage_menu_principal) {
+    // Ligne #1 du menu
+    ecran_oled.setTextSize(1);
+    ecran_oled.setCursor(10, 25);  ecran_oled.println("T(min) :");
+    if(ligne_selectionnee_dans_menu == 1 && touches_gauche_droite_actives == true) {
+      ecran_oled.setTextColor(BLACK, WHITE);
+    }
+    ecran_oled.setCursor(70, 25);  ecran_oled.println(valeurMinCouranteServo);
+    
+    // Ligne #2 du menu
+    ecran_oled.setTextColor(WHITE);
+    ecran_oled.setCursor(10, 35);  ecran_oled.println("T(max) :");
+    if(ligne_selectionnee_dans_menu == 2 && touches_gauche_droite_actives == true) {
+      ecran_oled.setTextColor(BLACK, WHITE);
+    }
+    ecran_oled.setCursor(70, 35);  ecran_oled.println(valeurMaxCouranteServo);
   
-  // Ligne #2 du menu
-  ecran_oled.setTextColor(SSD1306_WHITE);
-  ecran_oled.setCursor(10, 35);  ecran_oled.println("T(max) :");
-  if(numeroLigneAvecValeurEnSurbrillance == 2) {
-    ecran_oled.setTextColor(BLACK, WHITE);
+    // Ligne #3 du menu 
+    ecran_oled.setTextColor(WHITE);
+    ecran_oled.setCursor(10, 55);
+    ecran_oled.println("Reinitialiser");
+  
+    // Curseur (symbole ">")
+    switch(ligne_selectionnee_dans_menu) {
+      case 1:
+        ecran_oled.setCursor(0, 25);
+        break;
+      case 2:
+        ecran_oled.setCursor(0, 35);
+        break;
+      case 3:
+        ecran_oled.setCursor(0, 55);
+        break;
+      default:
+        ecran_oled.setCursor(0, 85);    // En dehors de l'écran, donc
+        break;
+    }
+    ecran_oled.println(">");
+  } else {
+    ecran_oled.setTextSize(1);
+    ecran_oled.setTextColor(WHITE);
+    ecran_oled.setCursor(11, 25);  ecran_oled.println("Reinitialiser les");
+    ecran_oled.setCursor(3, 35);  ecran_oled.println("valeurs par defaut ?");
+    if(annuler_reinitialisation) {
+      ecran_oled.setTextColor(BLACK, WHITE);
+      ecran_oled.setCursor(11, 55);  ecran_oled.println(" NON ");
+      ecran_oled.setTextColor(WHITE);
+      ecran_oled.setCursor(86, 55);  ecran_oled.println(" OUI ");
+    } else {
+      ecran_oled.setTextColor(WHITE);
+      ecran_oled.setCursor(11, 55);  ecran_oled.println(" NON ");
+      ecran_oled.setTextColor(BLACK, WHITE);
+      ecran_oled.setCursor(86, 55);  ecran_oled.println(" OUI ");
+    }
   }
-  ecran_oled.setCursor(70, 35);  ecran_oled.println(valeurMaxCouranteServo);
-
-  // Ligne #3 du menu 
-  ecran_oled.setTextColor(SSD1306_WHITE);
-  ecran_oled.setCursor(10, 55);
-  ecran_oled.println("Reinitialiser");
-
-  // Curseur (symbole ">")
-  switch(numeroLigneSelectionnee) {
-    case 1:
-      ecran_oled.setCursor(0, 25);
-      break;
-    case 2:
-      ecran_oled.setCursor(0, 35);
-      break;
-    case 3:
-      ecran_oled.setCursor(0, 55);
-      break;
-    default:
-      ecran_oled.setCursor(0, 85);    // En dehors de l'écran, donc
-      break;
-  }
-  ecran_oled.println(">");
 
   // Affichage (transfert de la mémoire tampon à l'écran OLED)
   ecran_oled.display();
@@ -274,6 +288,9 @@ void afficheMenu(int numeroLigneSelectionnee, int numeroLigneAvecValeurEnSurbril
 // Boucle principale
 // =================
 void loop() {
+
+  // On lit l'état du bouton du centre (noté "OK")
+  bool etatBoutonNavigationCentre = !digitalRead(pinArduinoRaccordeeAuBoutonDuCentre);  // Niveau HAUT si inactif ; niveau BAS si appuyé
 
   // On regarde si les touches HAUT/BAS sont actives (qui signifie qu'on navigue dans le "menu principal")
   if(touches_haut_bas_actives) {
@@ -302,9 +319,81 @@ void loop() {
       delay(20);      // Anti-rebond "logiciel" basique
     }
   }
+
+  if(touches_gauche_droite_actives) {
+    // On récupère l'état des touches
+    bool etatBoutonNavigationGauche = !digitalRead(pinArduinoRaccordeeAuBoutonDeGauche);    // Niveau HAUT si inactif ; niveau BAS si appuyé
+    bool etatBoutonNavigationDroite = !digitalRead(pinArduinoRaccordeeAuBoutonDeDroite);
+
+    // Si appui bouton de gauche
+    if(etatBoutonNavigationGauche) {
+      while(!digitalRead(pinArduinoRaccordeeAuBoutonDeGauche));                             // Attente qu'il repasse au niveau haut
+      if(ligne_selectionnee_dans_menu == 1) {
+        valeurMinCouranteServo = valeurMinCouranteServo - pasDeModificationDelaiImpulsionServo;
+        if(valeurMinCouranteServo < valeurMinSeuilBasImpulsionServo) {
+          valeurMinCouranteServo = valeurMinSeuilBasImpulsionServo;
+        }
+      } else if(ligne_selectionnee_dans_menu == 2) {
+        valeurMaxCouranteServo = valeurMaxCouranteServo - pasDeModificationDelaiImpulsionServo;
+        if(valeurMaxCouranteServo < valeurMinSeuilHautImpulsionServo) {
+          valeurMaxCouranteServo = valeurMinSeuilHautImpulsionServo;
+        }
+      } else if(ligne_selectionnee_dans_menu == 3) {
+        annuler_reinitialisation = true;
+      }
+      delay(20);      // Anti-rebond "logiciel" basique
+    }
+
+    // Si appui bouton de droite
+    if(etatBoutonNavigationDroite) {
+      while(!digitalRead(pinArduinoRaccordeeAuBoutonDeDroite));                             // Attente qu'il repasse au niveau haut
+      if(ligne_selectionnee_dans_menu == 1) {
+        valeurMinCouranteServo = valeurMinCouranteServo + pasDeModificationDelaiImpulsionServo;
+        if(valeurMinCouranteServo > valeurMaxSeuilBasImpulsionServo) {
+          valeurMinCouranteServo = valeurMaxSeuilBasImpulsionServo;
+        }
+      } else if(ligne_selectionnee_dans_menu == 2) {
+        valeurMaxCouranteServo = valeurMaxCouranteServo + pasDeModificationDelaiImpulsionServo;
+        if(valeurMaxCouranteServo > valeurMaxSeuilHautImpulsionServo) {
+          valeurMaxCouranteServo = valeurMaxSeuilHautImpulsionServo;
+        }
+      } else if(ligne_selectionnee_dans_menu == 3) {
+        annuler_reinitialisation = false;
+      }
+      delay(20);      // Anti-rebond "logiciel" basique
+    }
+  }
+
+  // Si appui sur le bouton du centre ("OK"), alors on sort du menu
+  if(etatBoutonNavigationCentre) {
+    if(touches_haut_bas_actives) {
+      while(!digitalRead(pinArduinoRaccordeeAuBoutonDuCentre));                         // Attente qu'il repasse au niveau haut
+      touches_gauche_droite_actives = true;
+      touches_haut_bas_actives = false;
+      if(ligne_selectionnee_dans_menu == 3) {
+        affichage_menu_principal = false;
+      }
+      delay(20);      // Anti-rebond "logiciel" basique
+    } else if(touches_gauche_droite_actives) {
+      while(!digitalRead(pinArduinoRaccordeeAuBoutonDuCentre));                         // Attente qu'il repasse au niveau haut
+      touches_gauche_droite_actives = false;
+      touches_haut_bas_actives = true;
+      if(ligne_selectionnee_dans_menu == 1) {
+        ecritValeurIntEnEEPROM(adresseMemoireValeurBasseImpulsionServo, valeurMinCouranteServo);
+        valeurPrecendentePotentiometre = -1;
+      } else if(ligne_selectionnee_dans_menu == 2) {
+        ecritValeurIntEnEEPROM(adresseMemoireValeurHauteImpulsionServo, valeurMaxCouranteServo);
+        valeurPrecendentePotentiometre = -1;
+      } else if(ligne_selectionnee_dans_menu == 3) {
+        annuler_reinitialisation = true;
+        affichage_menu_principal = true;
+      }
+      delay(20);      // Anti-rebond "logiciel" basique
+    }
+  } 
    
   // Affichage du menu (rafraîchi en permanence, en fait)
-  afficheMenu(ligne_selectionnee_dans_menu, ligne_avec_valeur_en_surbrillance);
+  afficheMenu();
 
   // Ajuste PWM en sortie, en fonction de la valeur du potentiomètre, et des bornes hautes/basses paramétrées
   int valPotentiometre = analogRead(pinArduinoRaccordeeAuPotentiometre);    // Valeur 10 bits (0..1023)
