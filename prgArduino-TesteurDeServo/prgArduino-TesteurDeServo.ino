@@ -42,12 +42,23 @@
 #define pinArduinoRaccordeeAuSCLecranOLED   A5      // La pin A5 de l'Arduino est connectée à la broche SCL de l'écran OLED
 
 
-// Autres constantes
-#define frequenceSignalPwmServo             50      // La fréquence PWM est de 50 Hz (non utilisé ici, c'est juste pour rappel)
-#define valeurMinParDefautImpulsionServo    1000    // Par défaut, la durée d'impulsion min servo sera de 1 ms minimum (1000 µs) ; mais cela pourrait être moins, si souhaité (nécessaire, parfois)
-#define valeurMaxParDefautImpulsionServo    2000    // Par défaut, la durée d'impulsion max servo sera de 2 ms maximum (2000 µs) ; mais cela pourrait être plus, si souhaité (nécessaire, parfois)
-#define valeurMinLimiteImpulsionServo       544     // Limite : la durée d'impulsion servo ne devra jamais être inférieure à 544 µs (imposé par la librairie Servo.h)
-#define valeurMaxLimiteImpulsionServo       2400    // Limite : la durée d'impulsion servo ne devra jamais être supérieure à 2400 µs (imposé par la librairie Servo.h)
+// Constantes concernant le servomoteur
+      // Juste pour rappel, concernant les servomoteurs :
+      //   - durée/période du signal de commande servomoteur            => 20 ms (20000 µs)     => cela correspond à un signal à 50 Hz, tout simplement
+      //   - délai d'impulsion pour tourner le servo de -90° environ    =>  1 ms (1000 µs)
+      //   - délai d'impulsion pour tourner le servo de +90° environ    =>  2 ms (2000 µs)
+      //   - délai minimal d'impulsion (imposé par librairie Servo.h)   =>  0.544 ms (544 µs)   => je vais prendre 550 µs dans ce code, pour simplifier les choses
+      //   - délai maximal d'impulsion (imposé par librairie Servo.h)   =>  2.400 ms (2400 µs)
+#define valeurMinSeuilBasImpulsionServo       550     // Avec ces 3 valeurs (550/1000/1500), on spécifie que la valeur min d'une impulsion servo
+#define valeurDefautSeuilBasImpulsionServo    1000    // sera comprise entre 550 et 1500 µs (avec 1000µs, par défaut)
+#define valeurMaxSeuilBasImpulsionServo       1500
+#define valeurMinSeuilHautImpulsionServo      1500    // Avec ces 3 valeurs (1500/2000/2400), on spécifie que la valeur max d'une impulsion servo
+#define valeurDefautSeuilHautImpulsionServo   2000    // sera comprise entre 1500 et 2400 µs (avec 2000µs, par défaut)
+#define valeurMaxSeuilHautImpulsionServo      2400
+#define pasModificationDelaiImpulsionServo    50      // Avec les boutons de navigation du menu, on pourra modifier les valeurs par pas de 50 µs
+
+
+// Constantes concernant l'écran OLED
 #define nombreDePixelsEnLargeurEcranOLED    128     // Taille de l'écran OLED, en pixel, au niveau de sa largeur
 #define nombreDePixelsEnHauteurEcranOLED    64      // Taille de l'écran OLED, en pixel, au niveau de sa hauteur
 #define brocheResetOLED                     -1      // Reset de l'écran OLED partagé avec l'Arduino, d'où la valeur à -1 ici (et non un numéro de pin)
