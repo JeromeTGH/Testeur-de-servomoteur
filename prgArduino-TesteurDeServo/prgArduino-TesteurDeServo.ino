@@ -91,6 +91,7 @@ bool touches_haut_bas_actives = true;               // Booléen qui dira si les 
 bool touches_gauche_droite_actives = false;         // Booléen qui dira si les touches gauche/droite doivent être actives ou non (selon si on navigue dans le menu, ou si on modifie une valeur)
 int valeurMinCouranteServo = 0;                     // Valeur minimale courante pour l'impulsion servo, servant de base au PWM
 int valeurMaxCouranteServo = 0;                     // Valeur maximale courante pour l'impulsion servo, servant de base au PWM
+int valeurPrecendentePotentiometre = 0;             // Mémorisation de la précédente valeur du potentiomètre, pour ne modifier le signal PWM que si nécessaire
 
 
 // ========================
@@ -117,6 +118,11 @@ void setup() {
 
     // Récupère les valeurs sauvegardées en EEPROM (ou les initialise, si elles sont absentes)
     recupereValeursEnEEPROM();
+
+
+    // <--- forçages pour tests
+    //valeurMinCouranteServo = valeurDefautSeuilBasImpulsionServo;
+    //valeurMaxCouranteServo = valeurDefautSeuilHautImpulsionServo;
     
 
     // Définition des entrées/sorties de l'Arduino
@@ -137,9 +143,6 @@ void setup() {
 
     // Petite pause, avant d'attaquer la boucle loop
     delay(500);
-
-    // Test :
-    servomoteur.writeMicroseconds(1500);   //  Met le servo en position médiane
 
 }
 
@@ -172,7 +175,6 @@ void recupereValeursEnEEPROM() {
     Serial.print(F("/max="));
     Serial.print(valeurMaxImpulsionServoLueEnEEPROM);
     Serial.println(F(")"));
-
   } else {
     // Le code ne correspond pas, alors on stocke ces valeurs dans les variables globales
     valeurMinCouranteServo = valeurDefautSeuilBasImpulsionServo;
@@ -183,6 +185,7 @@ void recupereValeursEnEEPROM() {
     ecritValeurIntEnEEPROM(adresseMemoireCodeArduinoNeufOuPas, valeurParticulierePourDireSiArduinoNeufOuPas);
     Serial.println(F("--> valeurs initialisées (1ère fois que ce programme est utilisé sur cet arduino)"));
   }
+  Serial.println("");
 }
 
 
@@ -302,6 +305,22 @@ void loop() {
    
   // Affichage du menu (rafraîchi en permanence, en fait)
   afficheMenu(ligne_selectionnee_dans_menu, ligne_avec_valeur_en_surbrillance);
+
+  // Ajuste PWM en sortie, en fonction de la valeur du potentiomètre, et des bornes hautes/basses paramétrées
+  int valPotentiometre = analogRead(pinArduinoRaccordeeAuPotentiometre);    // Valeur 10 bits (0..1023)
+  int valArrondiePot = ((int)(valPotentiometre/25)) * 25;
+  if (valArrondiePot != valeurPrecendentePotentiometre) {
+      Serial.print(F("Valeur arrondie du potentiomètre = "));
+      Serial.print(valArrondiePot);
+      Serial.println(F("/1000"));   // 1000 et non 1023, du fait de l'arrondi sans virgule /25 * 25 ci-dessus
+      int dureeImpulsionPWM = map(valArrondiePot, 0, 1000, valeurMinCouranteServo, valeurMaxCouranteServo);
+      servomoteur.writeMicroseconds(dureeImpulsionPWM);
+      Serial.print(F("Durée impulsion haute PWM = "));
+      Serial.print(dureeImpulsionPWM);
+      Serial.println(F(" µs"));
+      valeurPrecendentePotentiometre = valArrondiePot;
+  }
+
 
   // Puis on reboucle … à l'infini !
 }
