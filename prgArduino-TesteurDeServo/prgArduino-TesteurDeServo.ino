@@ -26,6 +26,7 @@
 
 
 // Inclusion des librairies dont nous allons nous servir ici
+#include <EEPROM.h>
 #include <Servo.h>
 #include <Adafruit_SSD1306.h>
 
@@ -65,13 +66,28 @@
 #define adresseI2CdeLecranOLED              0x3C    // Adresse i2c de l'écran OLED (généralement 0x3C par défaut, sinon 0x3D)
 
 
+// Constante concernant l'EEPROM interne à l'Arduino
+      // Pour rappel :
+      //     - la mémoire d'un Arduino Nano (microcontrôleur ATmega328P, donc) dispose de 1024 octets d’EEPROM (allant de l'adresse eeprom 0 à 1023)
+      //     - par défaut, si l'arduino est neuf ou si son EEPROM n'a jamais servi, les cases eeprom contienent la valeur 255
+#define adresseMemoireValeurBasseImpulsionServo       0       // On utilisera 2 octets ici, pour pouroir stocker une valeur entre 0 et 65535 (idéal pour nos "~1000 µs")
+#define adresseMemoireValeurHauteImpulsionServo       2       // On utilisera 2 octets ici, pour pouvoir stocker une valeur entre 0 et 65535 (idéal pour nos "~2000 µs")
+#define adresseMemoireCodeArduinoNeufOuPas            4       // On utilisera 2 octets ici, pour pouvoir stocker un code "aléatoire particulier",qui nous dira si notre
+#define valeurParticulierePourDireSiArduinoNeufOuPas  9876    // arduino a déjà servi ou non (toute valeur autre que 2 octets à 255 aurait pu convenir, dans l'absolu)
+
+
+
 // Variables librairies
 Servo servomoteur;
 Adafruit_SSD1306 ecran_oled(nombreDePixelsEnLargeurEcranOLED, nombreDePixelsEnHauteurEcranOLED, &Wire, brocheResetOLED);
 
-// Autres variables
-int ligne_selectionnee_dans_menu = 1;
 
+// Autres variables
+int ligne_selectionnee_dans_menu = 1;               // Contiendra le numéro de ligne sélectionné dans le menu de l'écran OLED (1=Tmin, 2=Tmax, et 3=Réinitialiser)
+bool touches_haut_bas_actives = true;               // Booléen qui dira si les touches haut/bas doivent être actives ou non (selon si on navigue dans le menu, ou si on modifie une valeur)
+bool touches_gauche_droite_actives = false;         // Booléen qui dira si les touches gauche/droite doivent être actives ou non (selon si on navigue dans le menu, ou si on modifie une valeur)
+int valeurMinCouranteServo = 0;                     // Valeur minimale courante pour l'impulsion servo, servant de base au PWM
+int valeurMaxCouranteServo = 0;                     // Valeur maximale courante pour l'impulsion servo, servant de base au PWM
 
 
 // ========================
@@ -94,6 +110,10 @@ void setup() {
     } else {
       Serial.println(F("Écran OLED présent (initialisation du contrôleur SSD1306 réussie)"));
     }
+
+
+    // Récupère les valeurs sauvegardées en EEPROM (ou les initialise, si elles sont absentes)
+    recupereValeursEnEEPROM();
     
 
     // Définition des entrées/sorties de l'Arduino
@@ -127,6 +147,67 @@ void setup() {
     servomoteur.writeMicroseconds(1500);   //  Met le servo en position médiane
 
 }
+
+
+// ==================================
+// Fonction : recupereValeursEnEEPROM
+// ==================================
+void recupereValeursEnEEPROM() {
+
+  Serial.println("");
+  Serial.println(F("Récupératon des valeurs sauvegardées en EEPROM"));
+
+  // Pour commencer, on lit les 5 premiers octets de la mémoire EEPROM. Pour rappel, ils doivent contenir :
+  //      - sur 2 octets : la valeur min de l'impulsion servo sauvegardée
+  //      - sur 2 octets : la valeur max de l'impulsion servo sauvegardée
+  //      - et sur 1 octet : un code de vérification nous disant si cette application a été tournée sur cet arduino ou non
+  //        (si l'arduino est "neuf", on aura la valeur 255 au lieu de la valeur attendue, ce qui nous indiquera qu'il faut initialiser cette mémoire)
+  
+  int valeurMinImpulsionServoLueEnEEPROM = litValeurIntEnEEPROM(adresseMemoireValeurBasseImpulsionServo);
+  int valeurMaxImpulsionServoLueEnEEPROM = litValeurIntEnEEPROM(adresseMemoireValeurHauteImpulsionServo);
+  int valeurCodeDeVerificationLuEnEEPROM = litValeurIntEnEEPROM(adresseMemoireCodeArduinoNeufOuPas);
+
+  // 2 cas possibles : le code de vérification est bon, ou pas !
+  if(valeurCodeDeVerificationLuEnEEPROM == valeurParticulierePourDireSiArduinoNeufOuPas) {
+    // Le code correspond, alors on stocke ces valeurs dans nos variables globales (déclarées tout en haut de ce programme)
+    valeurMinCouranteServo = valeurMinImpulsionServoLueEnEEPROM;
+    valeurMaxCouranteServo = valeurMaxImpulsionServoLueEnEEPROM;
+    Serial.println(F("--> valeurs récupérées avec succès"));
+  } else {
+    // Le code ne correspond pas, alors on stocke ces valeurs dans les variables globales
+    valeurMinCouranteServo = valeurDefautSeuilBasImpulsionServo;
+    valeurMaxCouranteServo = valeurDefautSeuilHautImpulsionServo;
+    // et on initialise la mémoire EEPROM avec
+    ecritValeurIntEnEEPROM(adresseMemoireValeurBasseImpulsionServo, valeurDefautSeuilBasImpulsionServo);
+    ecritValeurIntEnEEPROM(adresseMemoireValeurHauteImpulsionServo, valeurDefautSeuilHautImpulsionServo);
+    ecritValeurIntEnEEPROM(adresseMemoireCodeArduinoNeufOuPas, valeurParticulierePourDireSiArduinoNeufOuPas);
+    Serial.println(F("--> valeurs initialisées (1ère fois que ce programme est utilisé sur cet arduino)"));
+  }
+}
+
+
+// ===============================
+// Fonction : litValeurIntEnEEPROM
+// ===============================
+int litValeurIntEnEEPROM(int adresse)
+{
+  // Une valeur "int" est de type 16 bits ; elle prend donc 2 octets
+  byte octet1 = EEPROM.read(adresse);
+  byte octet2 = EEPROM.read(adresse + 1);
+  return (octet1 << 8) + octet2;
+}
+
+// =================================
+// Fonction : ecritValeurIntEnEEPROM
+// =================================
+void ecritValeurIntEnEEPROM(int adresse, int valeur)
+{
+  // Une valeur "int" est de type 16 bits ; elle prend donc 2 octets
+  EEPROM.write(adresse, valeur >> 8);               // 8 bits de poids fort d'abord
+  EEPROM.write(adresse + 1, valeur & 0xFF);         // 8 bits de poids faible après
+}
+
+
 
 // ======================
 // Fonction : afficheMenu
