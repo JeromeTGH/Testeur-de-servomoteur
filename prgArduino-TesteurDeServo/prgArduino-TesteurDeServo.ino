@@ -66,7 +66,7 @@
 #define adresseI2CdeLecranOLED              0x3C    // Adresse i2c de l'écran OLED (généralement 0x3C par défaut, sinon 0x3D)
 
 
-// Constante concernant l'EEPROM interne à l'Arduino
+// Constantes concernant l'EEPROM interne à l'Arduino
       // Pour rappel :
       //     - la mémoire d'un Arduino Nano (microcontrôleur ATmega328P, donc) dispose de 1024 octets d’EEPROM (allant de l'adresse eeprom 0 à 1023)
       //     - par défaut, si l'arduino est neuf ou si son EEPROM n'a jamais servi, les cases eeprom contienent la valeur 255
@@ -76,6 +76,8 @@
 #define valeurParticulierePourDireSiArduinoNeufOuPas  9876    // arduino a déjà servi ou non (toute valeur autre que 2 octets à 255 aurait pu convenir, dans l'absolu)
 
 
+// Constantes du menu de navigation
+#define nombreDeLigneMaxDansMenu            3
 
 // Variables librairies
 Servo servomoteur;
@@ -84,6 +86,7 @@ Adafruit_SSD1306 ecran_oled(nombreDePixelsEnLargeurEcranOLED, nombreDePixelsEnHa
 
 // Autres variables
 int ligne_selectionnee_dans_menu = 1;               // Contiendra le numéro de ligne sélectionné dans le menu de l'écran OLED (1=Tmin, 2=Tmax, et 3=Réinitialiser)
+int ligne_avec_valeur_en_surbrillance = 0;          // Contiendra le numéro de ligne dont la valeur doit être mise en surbrillance (0 si aucune)
 bool touches_haut_bas_actives = true;               // Booléen qui dira si les touches haut/bas doivent être actives ou non (selon si on navigue dans le menu, ou si on modifie une valeur)
 bool touches_gauche_droite_actives = false;         // Booléen qui dira si les touches gauche/droite doivent être actives ou non (selon si on navigue dans le menu, ou si on modifie une valeur)
 int valeurMinCouranteServo = 0;                     // Valeur minimale courante pour l'impulsion servo, servant de base au PWM
@@ -132,16 +135,8 @@ void setup() {
     // Raccordement logiciel de la ligne "signal" du servomoteur, à la broche arduino (D9, pour rappel)
     servomoteur.attach(pinArduinoRaccordeeAuServomoteur);
 
-
-    // Affiche le menu
-    ecran_oled.setTextColor(SSD1306_WHITE);
-    afficheMenu();
-
-
-
     // Petite pause, avant d'attaquer la boucle loop
     delay(500);
-
 
     // Test :
     servomoteur.writeMicroseconds(1500);   //  Met le servo en position médiane
@@ -172,7 +167,12 @@ void recupereValeursEnEEPROM() {
     // Le code correspond, alors on stocke ces valeurs dans nos variables globales (déclarées tout en haut de ce programme)
     valeurMinCouranteServo = valeurMinImpulsionServoLueEnEEPROM;
     valeurMaxCouranteServo = valeurMaxImpulsionServoLueEnEEPROM;
-    Serial.println(F("--> valeurs récupérées avec succès"));
+    Serial.print(F("--> valeurs récupérées avec succès (min="));
+    Serial.print(valeurMinImpulsionServoLueEnEEPROM);
+    Serial.print(F("/max="));
+    Serial.print(valeurMaxImpulsionServoLueEnEEPROM);
+    Serial.println(F(")"));
+
   } else {
     // Le code ne correspond pas, alors on stocke ces valeurs dans les variables globales
     valeurMinCouranteServo = valeurDefautSeuilBasImpulsionServo;
@@ -192,8 +192,8 @@ void recupereValeursEnEEPROM() {
 int litValeurIntEnEEPROM(int adresse)
 {
   // Une valeur "int" est de type 16 bits ; elle prend donc 2 octets
-  byte octet1 = EEPROM.read(adresse);
-  byte octet2 = EEPROM.read(adresse + 1);
+  byte octet1 = EEPROM.read(adresse);               // 8 bits de poids fort en premier
+  byte octet2 = EEPROM.read(adresse + 1);           // 8 bits de poids faible ensuite
   return (octet1 << 8) + octet2;
 }
 
@@ -212,27 +212,53 @@ void ecritValeurIntEnEEPROM(int adresse, int valeur)
 // ======================
 // Fonction : afficheMenu
 // ======================
-void afficheMenu() {
+void afficheMenu(int numeroLigneSelectionnee, int numeroLigneAvecValeurEnSurbrillance) {
 
   // Effaçage de la mémoire tampon de l'écran OLED
   ecran_oled.clearDisplay();                           
 
   // Titre
+  ecran_oled.setTextColor(WHITE);
   ecran_oled.setTextSize(2);
   ecran_oled.setCursor(10, 0);
   ecran_oled.println("SERVOTEST");
 
-  // Choix
+  // Ligne #1 du menu
   ecran_oled.setTextSize(1);
-  ecran_oled.setCursor(10, 20);
-  ecran_oled.println("T(min) : 1000");
-  ecran_oled.setCursor(10, 30);
-  ecran_oled.println("T(max) : 2000");
-  ecran_oled.setCursor(10, 50);
+  ecran_oled.setCursor(10, 25);  ecran_oled.println("T(min) :");
+  if(numeroLigneAvecValeurEnSurbrillance == 1) {
+    ecran_oled.setTextColor(BLACK, WHITE);
+  }
+  ecran_oled.setCursor(70, 25);  ecran_oled.println(valeurMinCouranteServo);
+  
+  // Ligne #2 du menu
+  ecran_oled.setTextColor(SSD1306_WHITE);
+  ecran_oled.setCursor(10, 35);  ecran_oled.println("T(max) :");
+  if(numeroLigneAvecValeurEnSurbrillance == 2) {
+    ecran_oled.setTextColor(BLACK, WHITE);
+  }
+  ecran_oled.setCursor(70, 35);  ecran_oled.println(valeurMaxCouranteServo);
+
+  // Ligne #3 du menu 
+  ecran_oled.setTextColor(SSD1306_WHITE);
+  ecran_oled.setCursor(10, 55);
   ecran_oled.println("Reinitialiser");
 
   // Curseur (symbole ">")
-  ecran_oled.setCursor(0, (1 * 10) + 10);
+  switch(numeroLigneSelectionnee) {
+    case 1:
+      ecran_oled.setCursor(0, 25);
+      break;
+    case 2:
+      ecran_oled.setCursor(0, 35);
+      break;
+    case 3:
+      ecran_oled.setCursor(0, 55);
+      break;
+    default:
+      ecran_oled.setCursor(0, 85);    // En dehors de l'écran, donc
+      break;
+  }
   ecran_oled.println(">");
 
   // Affichage (transfert de la mémoire tampon à l'écran OLED)
@@ -246,33 +272,36 @@ void afficheMenu() {
 // =================
 void loop() {
 
-//    // Lecture des signaux du KY-040 arrivant sur l'arduino
-//    int etatActuelDeLaLigneCLK = digitalRead(pinArduinoRaccordementSignalCLK);
-//    int etatActuelDeLaLigneSW  = digitalRead(pinArduinoRaccordementSignalSW);
-//    int etatActuelDeLaLigneDT  = digitalRead(pinArduinoRaccordementSignalDT);
-//
-//    // *****************************************
-//    // On regarde si la ligne SW a changé d'état
-//    // *****************************************
-//    if(etatActuelDeLaLigneSW != etatPrecedentLigneSW) {
-//
-//        // Si l'état de SW a changé, alors on mémorise son nouvel état
-//        etatPrecedentLigneSW = etatActuelDeLaLigneSW;
-//
-//        // Puis on affiche le nouvel état de SW sur le moniteur série de l'IDE Arduino
-//        if(etatActuelDeLaLigneSW == LOW)
-//            Serial.println(F("Bouton SW appuyé"));
-//        else
-//            Serial.println(F("Bouton SW relâché"));
-//
-//        // Petit délai de 10 ms, pour filtrer les éventuels rebonds sur SW
-//        delay(10);
-//    }
+  // On regarde si les touches HAUT/BAS sont actives (qui signifie qu'on navigue dans le "menu principal")
+  if(touches_haut_bas_actives) {
 
-   
+    // On récupère l'état des touches
+    bool etatBoutonNavigationHaut = !digitalRead(pinArduinoRaccordeeAuBoutonDuHaut);    // Niveau HAUT si inactif ; niveau BAS si appuyé
+    bool etatBoutonNavigationBas = !digitalRead(pinArduinoRaccordeeAuBoutonDuBas);
 
-    // ********************************
-    // Puis on reboucle … à l'infini !
-    // ********************************
+    // Si appui vers le haut, alors on remonte dans le menu (on "décrémente" le numéro de ligne sélectionné, donc)
+    if(etatBoutonNavigationHaut) {
+      while(!digitalRead(pinArduinoRaccordeeAuBoutonDuHaut));                           // Attente qu'il repasse au niveau haut
+      ligne_selectionnee_dans_menu = ligne_selectionnee_dans_menu - 1;
+      if(ligne_selectionnee_dans_menu < 1) {
+        ligne_selectionnee_dans_menu = 1;
+      }
+      delay(20);      // Anti-rebond "logiciel" basique
+    }
+
+    // Si appui vers le bas, alors on descend dans le menu (on "incrémente" le numéro de ligne sélectionné, donc)
+    if(etatBoutonNavigationBas) {
+      while(!digitalRead(pinArduinoRaccordeeAuBoutonDuBas));                            // Attente qu'il repasse au niveau haut
+      ligne_selectionnee_dans_menu = ligne_selectionnee_dans_menu + 1;
+      if(ligne_selectionnee_dans_menu > nombreDeLigneMaxDansMenu) {
+        ligne_selectionnee_dans_menu = nombreDeLigneMaxDansMenu;
+      }
+      delay(20);      // Anti-rebond "logiciel" basique
+    }
+  }
    
+  // Affichage du menu (rafraîchi en permanence, en fait)
+  afficheMenu(ligne_selectionnee_dans_menu, ligne_avec_valeur_en_surbrillance);
+
+  // Puis on reboucle … à l'infini !
 }
