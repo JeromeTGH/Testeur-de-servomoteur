@@ -86,13 +86,13 @@ Adafruit_SSD1306 ecran_oled(nombreDePixelsEnLargeurEcranOLED, nombreDePixelsEnHa
 
 // Autres variables
 int ligne_selectionnee_dans_menu = 1;               // Contiendra le numéro de ligne sélectionné dans le menu de l'écran OLED (1=Tmin, 2=Tmax, et 3=Réinitialiser)
-bool boutons_haut_bas_actifs = true;                // Booléen qui dira si les boutons haut/bas doivent être actifs ou non (selon si on navigue dans le menu, ou non)
-bool boutons_gauche_droite_actifs = false;          // Booléen qui dira si les boutons gauche/droite doivent être actifs ou non (selon si on est en mode édition/modification/validation, ou non)
-bool affichage_menu_principal = true;               // Booléen qui dira si on affiche le menu principal ou l'écran de réinitialisation
-bool annuler_reinitialisation = true;               // Booléen qui dire si on a sélectionné l'option "NON" ou "OUI", sur la page "réinitialiser les valeurs"
 int valeurMinCouranteServo = 0;                     // Valeur minimale courante pour l'impulsion servo, servant de base au PWM
 int valeurMaxCouranteServo = 0;                     // Valeur maximale courante pour l'impulsion servo, servant de base au PWM
 int valeurPrecendentePotentiometre = 0;             // Mémorisation de la précédente valeur du potentiomètre, pour ne modifier le signal PWM que si nécessaire
+bool boutons_haut_bas_actifs = true;                // Booléen qui dira si les boutons haut/bas doivent être actifs ou non (selon si on navigue dans le menu, ou non)
+bool boutons_gauche_droite_actifs = false;          // Booléen qui dira si les boutons gauche/droite doivent être actifs ou non (selon si on est en mode édition/modification/validation, ou non)
+bool afficher_menu_principal = true;                // Booléen qui dira si on doit afficher le menu principal ou l'écran de réinitialisation
+bool annuler_reinitialisation = true;               // Booléen qui dire si on a sélectionné l'option "NON" ou "OUI", sur la page "réinitialiser les valeurs"
 
 
 // ========================
@@ -222,7 +222,7 @@ void contruitEtRafraichitAffichageEcranOLED() {
   ecran_oled.setCursor(10, 0);
   ecran_oled.println("SERVOTEST");
 
-  if(affichage_menu_principal) {
+  if(afficher_menu_principal) {
 
     // ==== Affichage "MENU PRINCIPAL"
 
@@ -333,7 +333,7 @@ void gestionEtActionsMenuDeNavigation() {
     bool etatBoutonNavigationHaut = !digitalRead(pinArduinoRaccordeeAuBoutonDuHaut);    // Niveau HAUT si inactif ; niveau BAS si appuyé
     bool etatBoutonNavigationBas = !digitalRead(pinArduinoRaccordeeAuBoutonDuBas);
 
-    // ====== Bouton HAUT ======
+    // ====== Cas où bouton HAUT actif ======
     if(etatBoutonNavigationHaut) {
       // Si appui vers le haut, alors on remonte dans le menu (on "décrémente" le numéro de ligne sélectionné, donc)
       while(!digitalRead(pinArduinoRaccordeeAuBoutonDuHaut));                           // Attente qu'il repasse au niveau haut
@@ -344,7 +344,7 @@ void gestionEtActionsMenuDeNavigation() {
       delay(20);      // Anti-rebond "logiciel" basique
     }
 
-    // ====== Bouton BAS ======
+    // ====== Cas où bouton BAS actif ======
     if(etatBoutonNavigationBas) {
       // Si appui vers le bas, alors on descend dans le menu (on "incrémente" le numéro de ligne sélectionné, donc)
       while(!digitalRead(pinArduinoRaccordeeAuBoutonDuBas));                            // Attente qu'il repasse au niveau haut
@@ -365,7 +365,7 @@ void gestionEtActionsMenuDeNavigation() {
     bool etatBoutonNavigationGauche = !digitalRead(pinArduinoRaccordeeAuBoutonDeGauche);    // Niveau HAUT si inactif ; niveau BAS si appuyé
     bool etatBoutonNavigationDroite = !digitalRead(pinArduinoRaccordeeAuBoutonDeDroite);
 
-    // ====== Bouton GAUCHE ======
+    // ====== Cas où bouton GAUCHE actif ======
     if(etatBoutonNavigationGauche) {
       while(!digitalRead(pinArduinoRaccordeeAuBoutonDeGauche));                             // Attente qu'il repasse au niveau haut
       if(ligne_selectionnee_dans_menu == 1) {
@@ -386,7 +386,7 @@ void gestionEtActionsMenuDeNavigation() {
       delay(20);      // Anti-rebond "logiciel" basique
     }
 
-    // ====== Bouton DROITE ======
+    // ====== Cas où bouton DROITE actif ======
     if(etatBoutonNavigationDroite) {
       while(!digitalRead(pinArduinoRaccordeeAuBoutonDeDroite));                             // Attente qu'il repasse au niveau haut
       if(ligne_selectionnee_dans_menu == 1) {
@@ -420,7 +420,7 @@ void gestionEtActionsMenuDeNavigation() {
       boutons_gauche_droite_actifs = true;
       boutons_haut_bas_actifs = false;
       if(ligne_selectionnee_dans_menu == 3) {
-        affichage_menu_principal = false;
+        afficher_menu_principal = false;
         annuler_reinitialisation = true;
       }
       delay(20);      // Anti-rebond "logiciel" basique
@@ -444,7 +444,7 @@ void gestionEtActionsMenuDeNavigation() {
           valeurMaxCouranteServo = valeurDefautSeuilHautImpulsionServo;
           ligne_selectionnee_dans_menu = 1;     // On remet le "curseur" sur la 1ère ligne du menu principal       
         }
-        affichage_menu_principal = true;
+        afficher_menu_principal = true;
       }
       valeurPrecendentePotentiometre = -1;    // On force le recalcul du signal PWM, avec ces nouvelles valeurs
       delay(20);      // Anti-rebond "logiciel" basique
@@ -465,8 +465,9 @@ void loop() {
   // Contruit/rafraîchit affichage écran OLED
   contruitEtRafraichitAffichageEcranOLED();
 
-  // Génère/ajuste le signal PWM en sortie (à destination du servomoteur)
+  // Génère/ajuste le signal PWM en sortie (pilotant le servomoteur)
   genereEtAjusteSignalPWMservomoteur();
 
   // Puis rebouclage, à l'infini
+
 }
