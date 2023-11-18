@@ -88,6 +88,7 @@ Adafruit_SSD1306 ecran_oled(nombreDePixelsEnLargeurEcranOLED, nombreDePixelsEnHa
 int ligne_selectionnee_dans_menu = 1;               // Contiendra le numéro de ligne sélectionné dans le menu de l'écran OLED (1=Tmin, 2=Tmax, et 3=Réinitialiser)
 int valeurMinCouranteServo = 0;                     // Valeur minimale courante pour l'impulsion servo, servant de base au PWM
 int valeurMaxCouranteServo = 0;                     // Valeur maximale courante pour l'impulsion servo, servant de base au PWM
+int valeurCouranteImpulsionServo = 0;               // Valeur courante de l'impulsion PWM, actuellement envoyée au servo
 int valeurPrecendentePotentiometre = 0;             // Mémorisation de la précédente valeur du potentiomètre, pour ne modifier le signal PWM que si nécessaire
 bool boutons_haut_bas_actifs = true;                // Booléen qui dira si les boutons haut/bas doivent être actifs ou non (selon si on navigue dans le menu, ou non)
 bool boutons_gauche_droite_actifs = false;          // Booléen qui dira si les boutons gauche/droite doivent être actifs ou non (selon si on est en mode édition/modification/validation, ou non)
@@ -226,25 +227,31 @@ void contruitEtRafraichitAffichageEcranOLED() {
 
     // ==== Affichage "MENU PRINCIPAL"
 
-    // Ligne #1 du menu
+    // Ligne #1
     ecran_oled.setTextSize(1);
     ecran_oled.setCursor(10, 25);  ecran_oled.println("T(min) :");
-    ecran_oled.setCursor(99, 25);  ecran_oled.println("us");
+    ecran_oled.setCursor(110, 25);  ecran_oled.println("us");
     if(ligne_selectionnee_dans_menu == 1 && boutons_gauche_droite_actifs == true) {
       ecran_oled.setTextColor(BLACK, WHITE);
     }
-    ecran_oled.setCursor(70, 25);  ecran_oled.println(valeurMinCouranteServo);
+    ecran_oled.setCursor(81, 25);  ecran_oled.println(valeurMinCouranteServo);
     
-    // Ligne #2 du menu
+    // Ligne #2
     ecran_oled.setTextColor(WHITE);
     ecran_oled.setCursor(10, 35);  ecran_oled.println("T(max) :");
-    ecran_oled.setCursor(99, 35);  ecran_oled.println("us");
+    ecran_oled.setCursor(110, 35);  ecran_oled.println("us");
     if(ligne_selectionnee_dans_menu == 2 && boutons_gauche_droite_actifs == true) {
       ecran_oled.setTextColor(BLACK, WHITE);
     }
-    ecran_oled.setCursor(70, 35);  ecran_oled.println(valeurMaxCouranteServo);
+    ecran_oled.setCursor(81, 35);  ecran_oled.println(valeurMaxCouranteServo);
+
+    // Ligne #3
+    ecran_oled.setTextColor(WHITE);
+    ecran_oled.setCursor(10, 45);  ecran_oled.println("T(actuel) :");
+    ecran_oled.setCursor(81, 45);  ecran_oled.println(valeurCouranteImpulsionServo);
+    ecran_oled.setCursor(110, 45);  ecran_oled.println("us");
   
-    // Ligne #3 du menu 
+    // Ligne #4
     ecran_oled.setTextColor(WHITE);
     ecran_oled.setCursor(10, 55);
     ecran_oled.println("Reinitialiser");
@@ -303,12 +310,13 @@ void genereEtAjusteSignalPWMservomoteur() {
       Serial.print(F("Valeur arrondie du potentiomètre = "));
       Serial.print(valArrondiePot);
       Serial.println(F("/1000"));   // 1000 et non 1023, du fait de l'arrondi sans virgule /25 * 25 ci-dessus
+      valeurPrecendentePotentiometre = valArrondiePot;
       int dureeImpulsionPWM = map(valArrondiePot, 0, 1000, valeurMinCouranteServo, valeurMaxCouranteServo);
       servomoteur.writeMicroseconds(dureeImpulsionPWM);
       Serial.print(F("Durée impulsion haute PWM = "));
       Serial.print(dureeImpulsionPWM);
       Serial.println(F(" µs"));
-      valeurPrecendentePotentiometre = valArrondiePot;
+      valeurCouranteImpulsionServo = dureeImpulsionPWM;
   }
 
 }
@@ -462,11 +470,11 @@ void loop() {
   // Gère les évènements liés à la navigation (boutons haut, droite, bas, gauche, et centre)
   gestionEtActionsMenuDeNavigation();
     
-  // Contruit/rafraîchit affichage écran OLED
-  contruitEtRafraichitAffichageEcranOLED();
-
   // Génère/ajuste le signal PWM en sortie (pilotant le servomoteur)
   genereEtAjusteSignalPWMservomoteur();
+
+  // Contruit/rafraîchit affichage écran OLED
+  contruitEtRafraichitAffichageEcranOLED();
 
   // Puis rebouclage, à l'infini
 
