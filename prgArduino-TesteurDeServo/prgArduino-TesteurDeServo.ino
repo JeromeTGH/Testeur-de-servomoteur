@@ -88,8 +88,8 @@ Adafruit_SSD1306 ecran_oled(nombreDePixelsEnLargeurEcranOLED, nombreDePixelsEnHa
 int ligne_selectionnee_dans_menu = 1;               // Contiendra le numéro de ligne sélectionné dans le menu de l'écran OLED (1=Tmin, 2=Tmax, et 3=Réinitialiser)
 bool touches_haut_bas_actives = true;               // Booléen qui dira si les touches haut/bas doivent être actives ou non (selon si on navigue dans le menu, ou si on modifie une valeur)
 bool touches_gauche_droite_actives = false;         // Booléen qui dira si les touches gauche/droite doivent être actives ou non (selon si on navigue dans le menu, ou si on modifie une valeur)
-bool affichage_menu_principal = true;               // Booléen qui dira si on affiche le menu principal ou une "autre page"
-bool annuler_reinitialisation = true;               // Booléen qui dire si on affiche l'option "NON" ou "OUI" lorsqu'on sera sur la page "réinitialiser valeurs"
+bool affichage_menu_principal = true;               // Booléen qui dira si on affiche le menu principal ou l'écran de réinitialisation
+bool annuler_reinitialisation = true;               // Booléen qui dire si on a sélectionné l'option "NON" ou "OUI", sur la page "réinitialiser les valeurs"
 int valeurMinCouranteServo = 0;                     // Valeur minimale courante pour l'impulsion servo, servant de base au PWM
 int valeurMaxCouranteServo = 0;                     // Valeur maximale courante pour l'impulsion servo, servant de base au PWM
 int valeurPrecendentePotentiometre = 0;             // Mémorisation de la précédente valeur du potentiomètre, pour ne modifier le signal PWM que si nécessaire
@@ -208,10 +208,10 @@ void ecritValeurIntEnEEPROM(int adresse, int valeur)
 
 
 
-// ======================
-// Fonction : afficheMenu
-// ======================
-void afficheMenu() {
+// ================================================
+// Fonction : contruitEtRafraichiAffichageEcranOLED
+// ================================================
+void contruitEtRafraichiAffichageEcranOLED() {
 
   // Effaçage de la mémoire tampon de l'écran OLED
   ecran_oled.clearDisplay();                           
@@ -223,9 +223,13 @@ void afficheMenu() {
   ecran_oled.println("SERVOTEST");
 
   if(affichage_menu_principal) {
+
+    // ==== Affichage "MENU PRINCIPAL"
+
     // Ligne #1 du menu
     ecran_oled.setTextSize(1);
     ecran_oled.setCursor(10, 25);  ecran_oled.println("T(min) :");
+    ecran_oled.setCursor(99, 25);  ecran_oled.println("us");
     if(ligne_selectionnee_dans_menu == 1 && touches_gauche_droite_actives == true) {
       ecran_oled.setTextColor(BLACK, WHITE);
     }
@@ -234,6 +238,7 @@ void afficheMenu() {
     // Ligne #2 du menu
     ecran_oled.setTextColor(WHITE);
     ecran_oled.setCursor(10, 35);  ecran_oled.println("T(max) :");
+    ecran_oled.setCursor(99, 35);  ecran_oled.println("us");
     if(ligne_selectionnee_dans_menu == 2 && touches_gauche_droite_actives == true) {
       ecran_oled.setTextColor(BLACK, WHITE);
     }
@@ -261,6 +266,9 @@ void afficheMenu() {
     }
     ecran_oled.println(">");
   } else {
+
+    // ==== Affichage "ÉCRAN DE RÉINITIALISATION VALEURS"
+
     ecran_oled.setTextSize(1);
     ecran_oled.setTextColor(WHITE);
     ecran_oled.setCursor(11, 25);  ecran_oled.println("Reinitialiser les");
@@ -282,6 +290,27 @@ void afficheMenu() {
   ecran_oled.display();
 }
 
+// ==================================
+// genereEtAjusteSignalPWMservomoteur
+// ==================================
+void genereEtAjusteSignalPWMservomoteur() {
+
+  // Ajuste PWM en sortie, en fonction de la valeur du potentiomètre, et des bornes hautes/basses paramétrées
+  int valPotentiometre = analogRead(pinArduinoRaccordeeAuPotentiometre);    // Valeur 10 bits (0..1023)
+  int valArrondiePot = ((int)(valPotentiometre/25)) * 25;
+  if (valArrondiePot != valeurPrecendentePotentiometre) {
+      Serial.print(F("Valeur arrondie du potentiomètre = "));
+      Serial.print(valArrondiePot);
+      Serial.println(F("/1000"));   // 1000 et non 1023, du fait de l'arrondi sans virgule /25 * 25 ci-dessus
+      int dureeImpulsionPWM = map(valArrondiePot, 0, 1000, valeurMinCouranteServo, valeurMaxCouranteServo);
+      servomoteur.writeMicroseconds(dureeImpulsionPWM);
+      Serial.print(F("Durée impulsion haute PWM = "));
+      Serial.print(dureeImpulsionPWM);
+      Serial.println(F(" µs"));
+      valeurPrecendentePotentiometre = valArrondiePot;
+  }
+
+}
 
 
 // =================
@@ -295,7 +324,7 @@ void loop() {
   // On regarde si les touches HAUT/BAS sont actives (qui signifie qu'on navigue dans le "menu principal")
   if(touches_haut_bas_actives) {
 
-    // On récupère l'état des touches
+    // On récupère l'état des touches haut/bas
     bool etatBoutonNavigationHaut = !digitalRead(pinArduinoRaccordeeAuBoutonDuHaut);    // Niveau HAUT si inactif ; niveau BAS si appuyé
     bool etatBoutonNavigationBas = !digitalRead(pinArduinoRaccordeeAuBoutonDuBas);
 
@@ -321,7 +350,8 @@ void loop() {
   }
 
   if(touches_gauche_droite_actives) {
-    // On récupère l'état des touches
+
+    // On récupère l'état des touches gauche/droite
     bool etatBoutonNavigationGauche = !digitalRead(pinArduinoRaccordeeAuBoutonDeGauche);    // Niveau HAUT si inactif ; niveau BAS si appuyé
     bool etatBoutonNavigationDroite = !digitalRead(pinArduinoRaccordeeAuBoutonDeDroite);
 
@@ -333,12 +363,14 @@ void loop() {
         if(valeurMinCouranteServo < valeurMinSeuilBasImpulsionServo) {
           valeurMinCouranteServo = valeurMinSeuilBasImpulsionServo;
         }
-      } else if(ligne_selectionnee_dans_menu == 2) {
+      }
+      if(ligne_selectionnee_dans_menu == 2) {
         valeurMaxCouranteServo = valeurMaxCouranteServo - pasDeModificationDelaiImpulsionServo;
         if(valeurMaxCouranteServo < valeurMinSeuilHautImpulsionServo) {
           valeurMaxCouranteServo = valeurMinSeuilHautImpulsionServo;
         }
-      } else if(ligne_selectionnee_dans_menu == 3) {
+      }
+      if(ligne_selectionnee_dans_menu == 3) {
         annuler_reinitialisation = true;
       }
       delay(20);      // Anti-rebond "logiciel" basique
@@ -352,26 +384,30 @@ void loop() {
         if(valeurMinCouranteServo > valeurMaxSeuilBasImpulsionServo) {
           valeurMinCouranteServo = valeurMaxSeuilBasImpulsionServo;
         }
-      } else if(ligne_selectionnee_dans_menu == 2) {
+      }
+      if(ligne_selectionnee_dans_menu == 2) {
         valeurMaxCouranteServo = valeurMaxCouranteServo + pasDeModificationDelaiImpulsionServo;
         if(valeurMaxCouranteServo > valeurMaxSeuilHautImpulsionServo) {
           valeurMaxCouranteServo = valeurMaxSeuilHautImpulsionServo;
         }
-      } else if(ligne_selectionnee_dans_menu == 3) {
+      }
+      if(ligne_selectionnee_dans_menu == 3) {
         annuler_reinitialisation = false;
       }
       delay(20);      // Anti-rebond "logiciel" basique
     }
   }
 
-  // Si appui sur le bouton du centre ("OK"), alors on sort du menu
+  // Si appui sur le bouton du centre ("OK")
   if(etatBoutonNavigationCentre) {
+    
     if(touches_haut_bas_actives) {
       while(!digitalRead(pinArduinoRaccordeeAuBoutonDuCentre));                         // Attente qu'il repasse au niveau haut
       touches_gauche_droite_actives = true;
       touches_haut_bas_actives = false;
       if(ligne_selectionnee_dans_menu == 3) {
         affichage_menu_principal = false;
+        annuler_reinitialisation = true;
       }
       delay(20);      // Anti-rebond "logiciel" basique
     } else if(touches_gauche_droite_actives) {
@@ -380,35 +416,32 @@ void loop() {
       touches_haut_bas_actives = true;
       if(ligne_selectionnee_dans_menu == 1) {
         ecritValeurIntEnEEPROM(adresseMemoireValeurBasseImpulsionServo, valeurMinCouranteServo);
-        valeurPrecendentePotentiometre = -1;
-      } else if(ligne_selectionnee_dans_menu == 2) {
+      }
+      if(ligne_selectionnee_dans_menu == 2) {
         ecritValeurIntEnEEPROM(adresseMemoireValeurHauteImpulsionServo, valeurMaxCouranteServo);
-        valeurPrecendentePotentiometre = -1;
-      } else if(ligne_selectionnee_dans_menu == 3) {
-        annuler_reinitialisation = true;
+      }
+      if(ligne_selectionnee_dans_menu == 3) {
+        if(annuler_reinitialisation == false) {
+          // Si la réinitialisation a été demandée, alors on réinitialise les valeurs par défaut (variables globales + EEPROM)
+          ecritValeurIntEnEEPROM(adresseMemoireValeurBasseImpulsionServo, valeurDefautSeuilBasImpulsionServo);
+          ecritValeurIntEnEEPROM(adresseMemoireValeurHauteImpulsionServo, valeurDefautSeuilHautImpulsionServo);
+          valeurMinCouranteServo = valeurDefautSeuilBasImpulsionServo;
+          valeurMaxCouranteServo = valeurDefautSeuilHautImpulsionServo;
+          ligne_selectionnee_dans_menu = 1;     // On remet le "curseur" sur la 1ère ligne du menu principal       
+        }
         affichage_menu_principal = true;
       }
+      valeurPrecendentePotentiometre = -1;    // On force le recalcul du signal PWM, avec ces nouvelles valeurs
       delay(20);      // Anti-rebond "logiciel" basique
     }
   } 
    
-  // Affichage du menu (rafraîchi en permanence, en fait)
-  afficheMenu();
+  // Contruit/rafraîchi affichage écran OLED
+  contruitEtRafraichiAffichageEcranOLED();
 
-  // Ajuste PWM en sortie, en fonction de la valeur du potentiomètre, et des bornes hautes/basses paramétrées
-  int valPotentiometre = analogRead(pinArduinoRaccordeeAuPotentiometre);    // Valeur 10 bits (0..1023)
-  int valArrondiePot = ((int)(valPotentiometre/25)) * 25;
-  if (valArrondiePot != valeurPrecendentePotentiometre) {
-      Serial.print(F("Valeur arrondie du potentiomètre = "));
-      Serial.print(valArrondiePot);
-      Serial.println(F("/1000"));   // 1000 et non 1023, du fait de l'arrondi sans virgule /25 * 25 ci-dessus
-      int dureeImpulsionPWM = map(valArrondiePot, 0, 1000, valeurMinCouranteServo, valeurMaxCouranteServo);
-      servomoteur.writeMicroseconds(dureeImpulsionPWM);
-      Serial.print(F("Durée impulsion haute PWM = "));
-      Serial.print(dureeImpulsionPWM);
-      Serial.println(F(" µs"));
-      valeurPrecendentePotentiometre = valArrondiePot;
-  }
+  // Génère/ajuste le signal PWM en sortie (à destination du servomoteur)
+  genereEtAjusteSignalPWMservomoteur();
+
 
 
   // Puis on reboucle … à l'infini !
