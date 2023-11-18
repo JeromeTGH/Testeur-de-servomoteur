@@ -208,10 +208,10 @@ void ecritValeurIntEnEEPROM(int adresse, int valeur)
 
 
 
-// ================================================
-// Fonction : contruitEtRafraichiAffichageEcranOLED
-// ================================================
-void contruitEtRafraichiAffichageEcranOLED() {
+// =================================================
+// Fonction : contruitEtRafraichitAffichageEcranOLED
+// =================================================
+void contruitEtRafraichitAffichageEcranOLED() {
 
   // Effaçage de la mémoire tampon de l'écran OLED
   ecran_oled.clearDisplay();                           
@@ -290,9 +290,10 @@ void contruitEtRafraichiAffichageEcranOLED() {
   ecran_oled.display();
 }
 
-// ==================================
-// genereEtAjusteSignalPWMservomoteur
-// ==================================
+
+// =============================================
+// Fonction : genereEtAjusteSignalPWMservomoteur
+// =============================================
 void genereEtAjusteSignalPWMservomoteur() {
 
   // Ajuste PWM en sortie, en fonction de la valeur du potentiomètre, et des bornes hautes/basses paramétrées
@@ -313,23 +314,28 @@ void genereEtAjusteSignalPWMservomoteur() {
 }
 
 
-// =================
-// Boucle principale
-// =================
-void loop() {
+// ===========================================
+// Fonction : gestionEtActionsMenuDeNavigation
+// ===========================================
+void gestionEtActionsMenuDeNavigation() {
 
-  // On lit l'état du bouton du centre (noté "OK")
-  bool etatBoutonNavigationCentre = !digitalRead(pinArduinoRaccordeeAuBoutonDuCentre);  // Niveau HAUT si inactif ; niveau BAS si appuyé
+  // Nota :
+  //   - les boutons HAUT/BAS sont actifs lorsqu'on navigue dans le menu principal ("monter" ou "descendre" dans le menu)
+  //   - les boutons GAUCHE/DROITE sont actifs lorsqu'on modifie une valeur (+/-, oui/non)
+  //   - la touche OK sert à éditer une valeur ciblée dans le menu ou valider un choix (ou une modification de valeur)
 
-  // On regarde si les touches HAUT/BAS sont actives (qui signifie qu'on navigue dans le "menu principal")
+  // ************************
+  // *** Boutons HAUT/BAS ***
+  // ************************
   if(touches_haut_bas_actives) {
 
-    // On récupère l'état des touches haut/bas
+    // On récupère l'état des boutons haut/bas
     bool etatBoutonNavigationHaut = !digitalRead(pinArduinoRaccordeeAuBoutonDuHaut);    // Niveau HAUT si inactif ; niveau BAS si appuyé
     bool etatBoutonNavigationBas = !digitalRead(pinArduinoRaccordeeAuBoutonDuBas);
 
-    // Si appui vers le haut, alors on remonte dans le menu (on "décrémente" le numéro de ligne sélectionné, donc)
+    // ====== Bouton HAUT ======
     if(etatBoutonNavigationHaut) {
+      // Si appui vers le haut, alors on remonte dans le menu (on "décrémente" le numéro de ligne sélectionné, donc)
       while(!digitalRead(pinArduinoRaccordeeAuBoutonDuHaut));                           // Attente qu'il repasse au niveau haut
       ligne_selectionnee_dans_menu = ligne_selectionnee_dans_menu - 1;
       if(ligne_selectionnee_dans_menu < 1) {
@@ -338,8 +344,9 @@ void loop() {
       delay(20);      // Anti-rebond "logiciel" basique
     }
 
-    // Si appui vers le bas, alors on descend dans le menu (on "incrémente" le numéro de ligne sélectionné, donc)
+    // ====== Bouton BAS ======
     if(etatBoutonNavigationBas) {
+      // Si appui vers le bas, alors on descend dans le menu (on "incrémente" le numéro de ligne sélectionné, donc)
       while(!digitalRead(pinArduinoRaccordeeAuBoutonDuBas));                            // Attente qu'il repasse au niveau haut
       ligne_selectionnee_dans_menu = ligne_selectionnee_dans_menu + 1;
       if(ligne_selectionnee_dans_menu > nombreDeLigneMaxDansMenu) {
@@ -349,13 +356,16 @@ void loop() {
     }
   }
 
+  // *****************************
+  // *** Boutons GAUCHE/DROITE ***
+  // *****************************
   if(touches_gauche_droite_actives) {
 
     // On récupère l'état des touches gauche/droite
     bool etatBoutonNavigationGauche = !digitalRead(pinArduinoRaccordeeAuBoutonDeGauche);    // Niveau HAUT si inactif ; niveau BAS si appuyé
     bool etatBoutonNavigationDroite = !digitalRead(pinArduinoRaccordeeAuBoutonDeDroite);
 
-    // Si appui bouton de gauche
+    // ====== Bouton GAUCHE ======
     if(etatBoutonNavigationGauche) {
       while(!digitalRead(pinArduinoRaccordeeAuBoutonDeGauche));                             // Attente qu'il repasse au niveau haut
       if(ligne_selectionnee_dans_menu == 1) {
@@ -376,7 +386,7 @@ void loop() {
       delay(20);      // Anti-rebond "logiciel" basique
     }
 
-    // Si appui bouton de droite
+    // ====== Bouton DROITE ======
     if(etatBoutonNavigationDroite) {
       while(!digitalRead(pinArduinoRaccordeeAuBoutonDeDroite));                             // Attente qu'il repasse au niveau haut
       if(ligne_selectionnee_dans_menu == 1) {
@@ -398,10 +408,14 @@ void loop() {
     }
   }
 
-  // Si appui sur le bouton du centre ("OK")
+  // *****************
+  // *** Bouton OK ***
+  // *****************
+  bool etatBoutonNavigationCentre = !digitalRead(pinArduinoRaccordeeAuBoutonDuCentre);  // Niveau HAUT si inactif ; niveau BAS si appuyé  
   if(etatBoutonNavigationCentre) {
     
     if(touches_haut_bas_actives) {
+      // ====== Cas où boutons HAUT/BAS actifs ======
       while(!digitalRead(pinArduinoRaccordeeAuBoutonDuCentre));                         // Attente qu'il repasse au niveau haut
       touches_gauche_droite_actives = true;
       touches_haut_bas_actives = false;
@@ -411,6 +425,7 @@ void loop() {
       }
       delay(20);      // Anti-rebond "logiciel" basique
     } else if(touches_gauche_droite_actives) {
+      // ====== Cas où boutons GAUCHE/DROITE actifs ======
       while(!digitalRead(pinArduinoRaccordeeAuBoutonDuCentre));                         // Attente qu'il repasse au niveau haut
       touches_gauche_droite_actives = false;
       touches_haut_bas_actives = true;
@@ -435,14 +450,23 @@ void loop() {
       delay(20);      // Anti-rebond "logiciel" basique
     }
   } 
-   
-  // Contruit/rafraîchi affichage écran OLED
-  contruitEtRafraichiAffichageEcranOLED();
+  
+}
+
+
+// =================
+// Boucle principale
+// =================
+void loop() {
+
+  // Gère les évènements liés à la navigation (touches haut, droite, bas, gauche, et centre/ok)
+  gestionEtActionsMenuDeNavigation();
+    
+  // Contruit/rafraîchit affichage écran OLED
+  contruitEtRafraichitAffichageEcranOLED();
 
   // Génère/ajuste le signal PWM en sortie (à destination du servomoteur)
   genereEtAjusteSignalPWMservomoteur();
 
-
-
-  // Puis on reboucle … à l'infini !
+  // Puis rebouclage, à l'infini
 }
