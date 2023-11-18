@@ -86,8 +86,8 @@ Adafruit_SSD1306 ecran_oled(nombreDePixelsEnLargeurEcranOLED, nombreDePixelsEnHa
 
 // Autres variables
 int ligne_selectionnee_dans_menu = 1;               // Contiendra le numéro de ligne sélectionné dans le menu de l'écran OLED (1=Tmin, 2=Tmax, et 3=Réinitialiser)
-bool touches_haut_bas_actives = true;               // Booléen qui dira si les touches haut/bas doivent être actives ou non (selon si on navigue dans le menu, ou si on modifie une valeur)
-bool touches_gauche_droite_actives = false;         // Booléen qui dira si les touches gauche/droite doivent être actives ou non (selon si on navigue dans le menu, ou si on modifie une valeur)
+bool boutons_haut_bas_actifs = true;                // Booléen qui dira si les boutons haut/bas doivent être actifs ou non (selon si on navigue dans le menu, ou non)
+bool boutons_gauche_droite_actifs = false;          // Booléen qui dira si les boutons gauche/droite doivent être actifs ou non (selon si on est en mode édition/modification/validation, ou non)
 bool affichage_menu_principal = true;               // Booléen qui dira si on affiche le menu principal ou l'écran de réinitialisation
 bool annuler_reinitialisation = true;               // Booléen qui dire si on a sélectionné l'option "NON" ou "OUI", sur la page "réinitialiser les valeurs"
 int valeurMinCouranteServo = 0;                     // Valeur minimale courante pour l'impulsion servo, servant de base au PWM
@@ -230,7 +230,7 @@ void contruitEtRafraichitAffichageEcranOLED() {
     ecran_oled.setTextSize(1);
     ecran_oled.setCursor(10, 25);  ecran_oled.println("T(min) :");
     ecran_oled.setCursor(99, 25);  ecran_oled.println("us");
-    if(ligne_selectionnee_dans_menu == 1 && touches_gauche_droite_actives == true) {
+    if(ligne_selectionnee_dans_menu == 1 && boutons_gauche_droite_actifs == true) {
       ecran_oled.setTextColor(BLACK, WHITE);
     }
     ecran_oled.setCursor(70, 25);  ecran_oled.println(valeurMinCouranteServo);
@@ -239,7 +239,7 @@ void contruitEtRafraichitAffichageEcranOLED() {
     ecran_oled.setTextColor(WHITE);
     ecran_oled.setCursor(10, 35);  ecran_oled.println("T(max) :");
     ecran_oled.setCursor(99, 35);  ecran_oled.println("us");
-    if(ligne_selectionnee_dans_menu == 2 && touches_gauche_droite_actives == true) {
+    if(ligne_selectionnee_dans_menu == 2 && boutons_gauche_droite_actifs == true) {
       ecran_oled.setTextColor(BLACK, WHITE);
     }
     ecran_oled.setCursor(70, 35);  ecran_oled.println(valeurMaxCouranteServo);
@@ -322,12 +322,12 @@ void gestionEtActionsMenuDeNavigation() {
   // Nota :
   //   - les boutons HAUT/BAS sont actifs lorsqu'on navigue dans le menu principal ("monter" ou "descendre" dans le menu)
   //   - les boutons GAUCHE/DROITE sont actifs lorsqu'on modifie une valeur (+/-, oui/non)
-  //   - la touche OK sert à éditer une valeur ciblée dans le menu ou valider un choix (ou une modification de valeur)
+  //   - le bouton OK sert à éditer une valeur ciblée dans le menu ou valider un choix (ou une modification de valeur)
 
   // ************************
   // *** Boutons HAUT/BAS ***
   // ************************
-  if(touches_haut_bas_actives) {
+  if(boutons_haut_bas_actifs) {
 
     // On récupère l'état des boutons haut/bas
     bool etatBoutonNavigationHaut = !digitalRead(pinArduinoRaccordeeAuBoutonDuHaut);    // Niveau HAUT si inactif ; niveau BAS si appuyé
@@ -359,9 +359,9 @@ void gestionEtActionsMenuDeNavigation() {
   // *****************************
   // *** Boutons GAUCHE/DROITE ***
   // *****************************
-  if(touches_gauche_droite_actives) {
+  if(boutons_gauche_droite_actifs) {
 
-    // On récupère l'état des touches gauche/droite
+    // On récupère l'état des boutons gauche/droite
     bool etatBoutonNavigationGauche = !digitalRead(pinArduinoRaccordeeAuBoutonDeGauche);    // Niveau HAUT si inactif ; niveau BAS si appuyé
     bool etatBoutonNavigationDroite = !digitalRead(pinArduinoRaccordeeAuBoutonDeDroite);
 
@@ -414,21 +414,21 @@ void gestionEtActionsMenuDeNavigation() {
   bool etatBoutonNavigationCentre = !digitalRead(pinArduinoRaccordeeAuBoutonDuCentre);  // Niveau HAUT si inactif ; niveau BAS si appuyé  
   if(etatBoutonNavigationCentre) {
     
-    if(touches_haut_bas_actives) {
+    if(boutons_haut_bas_actifs) {
       // ====== Cas où boutons HAUT/BAS actifs ======
       while(!digitalRead(pinArduinoRaccordeeAuBoutonDuCentre));                         // Attente qu'il repasse au niveau haut
-      touches_gauche_droite_actives = true;
-      touches_haut_bas_actives = false;
+      boutons_gauche_droite_actifs = true;
+      boutons_haut_bas_actifs = false;
       if(ligne_selectionnee_dans_menu == 3) {
         affichage_menu_principal = false;
         annuler_reinitialisation = true;
       }
       delay(20);      // Anti-rebond "logiciel" basique
-    } else if(touches_gauche_droite_actives) {
+    } else if(boutons_gauche_droite_actifs) {
       // ====== Cas où boutons GAUCHE/DROITE actifs ======
       while(!digitalRead(pinArduinoRaccordeeAuBoutonDuCentre));                         // Attente qu'il repasse au niveau haut
-      touches_gauche_droite_actives = false;
-      touches_haut_bas_actives = true;
+      boutons_gauche_droite_actifs = false;
+      boutons_haut_bas_actifs = true;
       if(ligne_selectionnee_dans_menu == 1) {
         ecritValeurIntEnEEPROM(adresseMemoireValeurBasseImpulsionServo, valeurMinCouranteServo);
       }
@@ -459,7 +459,7 @@ void gestionEtActionsMenuDeNavigation() {
 // =================
 void loop() {
 
-  // Gère les évènements liés à la navigation (touches haut, droite, bas, gauche, et centre/ok)
+  // Gère les évènements liés à la navigation (boutons haut, droite, bas, gauche, et centre)
   gestionEtActionsMenuDeNavigation();
     
   // Contruit/rafraîchit affichage écran OLED
