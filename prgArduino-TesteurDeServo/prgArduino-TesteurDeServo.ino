@@ -85,7 +85,8 @@ Adafruit_SSD1306 ecran_oled(nombreDePixelsEnLargeurEcranOLED, nombreDePixelsEnHa
 
 
 // Autres variables
-int ligne_selectionnee_dans_menu = 1;               // Contiendra le numéro de ligne sélectionné dans le menu de l'écran OLED (1=Tmin, 2=Tmax, et 3=Réinitialiser)
+int ligne_selectionnee_dans_menu = 1;               // Contiendra le numéro de ligne sélectionné dans le menu de l'écran OLED
+                                                    // (1=Tmin, 2=Tmax, et 4=Réinitialiser ; la 3ème ligne étant une ligne d'information, elle ne sera pas sélectionnable)
 int valeurMinCouranteServo = 0;                     // Valeur minimale courante pour l'impulsion servo, servant de base au PWM
 int valeurMaxCouranteServo = 0;                     // Valeur maximale courante pour l'impulsion servo, servant de base au PWM
 int valeurCouranteImpulsionServo = 0;               // Valeur courante de l'impulsion PWM, actuellement envoyée au servo
@@ -260,18 +261,21 @@ void contruitEtRafraichitAffichageEcranOLED() {
     switch(ligne_selectionnee_dans_menu) {
       case 1:
         ecran_oled.setCursor(0, 25);
+        ecran_oled.println(">");
         break;
       case 2:
         ecran_oled.setCursor(0, 35);
+        ecran_oled.println(">");
         break;
-      case 3:
+      case 4:
         ecran_oled.setCursor(0, 55);
+        ecran_oled.println(">");
         break;
       default:
-        ecran_oled.setCursor(0, 85);    // En dehors de l'écran, donc
+        // On n'affiche pas le curseur, sinon
         break;
     }
-    ecran_oled.println(">");
+    
   } else {
 
     // ==== Affichage "ÉCRAN DE RÉINITIALISATION VALEURS"
@@ -345,9 +349,17 @@ void gestionEtActionsMenuDeNavigation() {
     if(etatBoutonNavigationHaut) {
       // Si appui vers le haut, alors on remonte dans le menu (on "décrémente" le numéro de ligne sélectionné, donc)
       while(!digitalRead(pinArduinoRaccordeeAuBoutonDuHaut));                           // Attente qu'il repasse au niveau haut
-      ligne_selectionnee_dans_menu = ligne_selectionnee_dans_menu - 1;
-      if(ligne_selectionnee_dans_menu < 1) {
-        ligne_selectionnee_dans_menu = 1;
+      switch(ligne_selectionnee_dans_menu) {
+        case 2:
+          ligne_selectionnee_dans_menu = 1;     // On passe de la ligne #2 à la ligne #1
+          break;
+        case 4:
+          ligne_selectionnee_dans_menu = 2;     // On passe de la ligne #4 à la ligne #2
+          break;
+        default:
+          // Remarque 1 : on ne fait rien si on est sur la ligne #1, car on ne peut pas remonter plus haut, dans le menu
+          // Remarque 2 : la ligne #3 n'est pas sélectionnable, car purement informative
+          break;
       }
       delay(20);      // Anti-rebond "logiciel" basique
     }
@@ -356,9 +368,17 @@ void gestionEtActionsMenuDeNavigation() {
     if(etatBoutonNavigationBas) {
       // Si appui vers le bas, alors on descend dans le menu (on "incrémente" le numéro de ligne sélectionné, donc)
       while(!digitalRead(pinArduinoRaccordeeAuBoutonDuBas));                            // Attente qu'il repasse au niveau haut
-      ligne_selectionnee_dans_menu = ligne_selectionnee_dans_menu + 1;
-      if(ligne_selectionnee_dans_menu > nombreDeLigneMaxDansMenu) {
-        ligne_selectionnee_dans_menu = nombreDeLigneMaxDansMenu;
+      switch(ligne_selectionnee_dans_menu) {
+        case 1:
+          ligne_selectionnee_dans_menu = 2;     // On passe de la ligne #1 à la ligne #2
+          break;
+        case 2:
+          ligne_selectionnee_dans_menu = 4;     // On passe de la ligne #2 à la ligne #4
+          break;
+        default:
+          // Remarque 1 : on ne fait rien si on est sur la ligne #4, car on ne peut pas remonter plus bas, dans le menu
+          // Remarque 2 : la ligne #3 n'est pas sélectionnable, car purement informative
+          break;
       }
       delay(20);      // Anti-rebond "logiciel" basique
     }
@@ -388,7 +408,7 @@ void gestionEtActionsMenuDeNavigation() {
           valeurMaxCouranteServo = valeurMinSeuilHautImpulsionServo;
         }
       }
-      if(ligne_selectionnee_dans_menu == 3) {
+      if(ligne_selectionnee_dans_menu == 4) {
         annuler_reinitialisation = true;
       }
       delay(20);      // Anti-rebond "logiciel" basique
@@ -409,7 +429,7 @@ void gestionEtActionsMenuDeNavigation() {
           valeurMaxCouranteServo = valeurMaxSeuilHautImpulsionServo;
         }
       }
-      if(ligne_selectionnee_dans_menu == 3) {
+      if(ligne_selectionnee_dans_menu == 4) {
         annuler_reinitialisation = false;
       }
       delay(20);      // Anti-rebond "logiciel" basique
@@ -427,7 +447,7 @@ void gestionEtActionsMenuDeNavigation() {
       while(!digitalRead(pinArduinoRaccordeeAuBoutonDuCentre));                         // Attente qu'il repasse au niveau haut
       boutons_gauche_droite_actifs = true;
       boutons_haut_bas_actifs = false;
-      if(ligne_selectionnee_dans_menu == 3) {
+      if(ligne_selectionnee_dans_menu == 4) {
         afficher_menu_principal = false;
         annuler_reinitialisation = true;
       }
@@ -443,7 +463,7 @@ void gestionEtActionsMenuDeNavigation() {
       if(ligne_selectionnee_dans_menu == 2) {
         ecritValeurIntEnEEPROM(adresseMemoireValeurHauteImpulsionServo, valeurMaxCouranteServo);
       }
-      if(ligne_selectionnee_dans_menu == 3) {
+      if(ligne_selectionnee_dans_menu == 4) {
         if(annuler_reinitialisation == false) {
           // Si la réinitialisation a été demandée, alors on réinitialise les valeurs par défaut (variables globales + EEPROM)
           ecritValeurIntEnEEPROM(adresseMemoireValeurBasseImpulsionServo, valeurDefautSeuilBasImpulsionServo);
