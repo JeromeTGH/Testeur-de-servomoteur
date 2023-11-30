@@ -204,8 +204,13 @@ int litValeurIntEnEEPROM(int adresse)
 void ecritValeurIntEnEEPROM(int adresse, int valeur)
 {
   // Une valeur "int" est de type 16 bits ; elle prend donc 2 octets
-  EEPROM.write(adresse, valeur >> 8);               // 8 bits de poids fort d'abord
-  EEPROM.write(adresse + 1, valeur & 0xFF);         // 8 bits de poids faible après
+  EEPROM.update(adresse, valeur >> 8);              // 8 bits de poids fort d'abord
+  EEPROM.update(adresse + 1, valeur & 0xFF);        // 8 bits de poids faible après
+
+  // Nota : j'ai utilisé la fonction "EEPROM.update" au lieu de "EEPROM.write" ici, afin d'économiser la "durée de vie" de la mémoire EEPROM ;
+  //        en effet, avec "update", une écriture en mémoire EEPROM ne se produit que si la valeur à enregistrer est différente de celle déjà présente
+  //        à cette même adresse (en clair, si vous voulez enregistre par exemple 32 à la place de 27, la case est réécrite ; et si vous souhaitez
+  //        enregistrer par exemple la valeur 10 à la place de 10, alors l'enregistrement est "sauté", car inutile)
 }
 
 
