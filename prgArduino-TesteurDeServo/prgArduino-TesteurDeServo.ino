@@ -303,9 +303,9 @@ void contruitEtRafraichitAffichageEcranOLED() {
 
 
 // =============================================
-// Fonction : genereEtAjusteSignalPWMservomoteur
+// Fonction : genereOuAjusteSignalPWMservomoteur
 // =============================================
-void genereEtAjusteSignalPWMservomoteur() {
+void genereOuAjusteSignalPWMservomoteur() {
 
   // Ajuste PWM en sortie, en fonction de la valeur du potentiomètre, et des bornes hautes/basses paramétrées
   int valPotentiometre = analogRead(pinArduinoRaccordeeAuPotentiometre);    // Valeur 10 bits (0..1023)
@@ -326,10 +326,10 @@ void genereEtAjusteSignalPWMservomoteur() {
 }
 
 
-// ===========================================
-// Fonction : gestionEtActionsMenuDeNavigation
-// ===========================================
-void gestionEtActionsMenuDeNavigation() {
+// ===========================================================
+// Fonction : scruteEtatBoutonsDeNavigationEtAgitEnConsequence
+// ===========================================================
+void scruteEtatBoutonsDeNavigationEtAgitEnConsequence() {
 
   // Nota :
   //   - les boutons HAUT/BAS sont actifs lorsqu'on navigue dans le menu principal ("monter" ou "descendre" dans le menu)
@@ -487,11 +487,11 @@ void gestionEtActionsMenuDeNavigation() {
 // =================
 void loop() {
 
-  // Gère les évènements liés à la navigation (boutons haut, droite, bas, gauche, et centre)
-  gestionEtActionsMenuDeNavigation();
+  // Scrute l'état des boutons de navigation (boutons haut, droite, bas, gauche, et centre), et agit en conséquence
+  scruteEtatBoutonsDeNavigationEtAgitEnConsequence();
     
-  // Génère/ajuste le signal PWM en sortie (pilotant le servomoteur)
-  genereEtAjusteSignalPWMservomoteur();
+  // Génère (ou ajuste) le signal PWM à destination du servomoteur
+  genereOuAjusteSignalPWMservomoteur();
 
   // Contruit/rafraîchit affichage écran OLED
   contruitEtRafraichitAffichageEcranOLED();
